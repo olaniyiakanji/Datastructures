@@ -7,7 +7,6 @@ Implement a last-in-first-out (LIFO) stack using only two queues. The implemente
 You can assume that all operations are valid (e.g., pop or top operations will not be called on an empty stack).
 Example:
 
-python
 
 stack = MyStack()
 stack.push(1)
