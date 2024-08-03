@@ -26,6 +26,21 @@ def single_number(nums):
         result ^= num
     return result
 
+"""
+xplanation:
+
+    Bitwise XOR Operation:
+        XOR of a number with itself is 0 (e.g., a ^ a = 0).
+        XOR of a number with 0 is the number itself (e.g., a ^ 0 = a).
+        XOR is commutative and associative, so the order in which we apply it does not matter.
+    Iterate Through the Array:
+        XOR all the numbers together. Pairs of the same number will cancel out to 0, leaving the single number as the result.
+    Result:
+        The final value of result will be the number that appears only once in the array.
+
+
+"""
+
 # Test cases
 print(single_number([2, 2, 1]))         # Output: 1
 print(single_number([4, 1, 2, 1, 2]))   # Output: 4
