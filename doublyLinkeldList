@@ -1,0 +1,90 @@
+from __future__ import annotations
+from typing import Optional, Dict, Any
+
+class _Node:
+    __slots__ = ("key", "val", "prev", "next")
+    def __init__(self, key: Any = None, val: Any = None):
+        self.key: Any = key
+        self.val: Any = val
+        self.prev: Optional["_Node"] = None
+        self.next: Optional["_Node"] = None
+
+class LRUCache:
+    """
+    Least-Recently-Used (LRU) cache with O(1) get and put.
+
+    Internals:
+      - dict maps key -> node
+      - doubly linked list keeps usage order:
+          head <-> ... <-> tail
+        Most-recently-used is right after head.
+        Least-recently-used is right before tail.
+    """
+    def __init__(self, capacity: int):
+        if capacity <= 0:
+            raise ValueError("capacity must be positive")
+        self.cap = capacity
+        self.map: Dict[Any, _Node] = {}
+
+        # Sentinels to avoid edge checks
+        self.head = _Node()  # MRU side
+        self.tail = _Node()  # LRU side
+        self.head.next = self.tail
+        self.tail.prev = self.head
+
+    # ---------- Doubly linked list helpers ----------
+    def _add_after_head(self, node: _Node) -> None:
+        node.prev = self.head
+        node.next = self.head.next
+        self.head.next.prev = node
+        self.head.next = node
+
+    def _remove(self, node: _Node) -> None:
+        p, n = node.prev, node.next
+        p.next = n
+        n.prev = p
+        node.prev = node.next = None  # help GC
+
+    def _move_to_mru(self, node: _Node) -> None:
+        self._remove(node)
+        self._add_after_head(node)
+
+    def _evict_lru(self) -> None:
+        lru = self.tail.prev
+        if lru is self.head:
+            return
+        self._remove(lru)
+        del self.map[lru.key]
+
+    # ---------- Public API ----------
+    def get(self, key: Any) -> Any:
+        if key not in self.map:
+            return -1
+        node = self.map[key]
+        self._move_to_mru(node)
+        return node.val
+
+    def put(self, key: Any, value: Any) -> None:
+        if key in self.map:
+            node = self.map[key]
+            node.val = value
+            self._move_to_mru(node)
+            return
+        if len(self.map) >= self.cap:
+            self._evict_lru()
+        node = _Node(key, value)
+        self.map[key] = node
+        self._add_after_head(node)
+
+# --------- quick demo ---------
+if __name__ == "__main__":
+    cache = LRUCache(2)
+    cache.put(1, "A")           # cache: {1:A}
+    cache.put(2, "B")           # cache: {2:B, 1:A}  (2 is MRU)
+    print(cache.get(1))         # -> "A"  (1 becomes MRU)
+    cache.put(3, "C")           # evicts key 2 (LRU), cache: {3:C, 1:A}
+    print(cache.get(2))         # -> -1 (not found)
+    cache.put(4, "D")           # evicts key 1, cache: {4:D, 3:C}
+    print(cache.get(1))         # -> -1
+    print(cache.get(3))         # -> "C"
+    print(cache.get(4))         # -> "D"
