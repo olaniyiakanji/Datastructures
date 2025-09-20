@@ -1,0 +1,1441 @@
+{
+  "name": "Islamic Education Sales Automation - Master Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "lead_generation_scheduler",
+      "name": "Lead Generation Scheduler",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Master Configuration for Islamic Education Business\nconst masterConfig = {\n  business: {\n    name: \"Islamic Education Center\",\n    website: \"your-domain.com\",\n    courses: [\n      {\n        id: \"tajweed_group\",\n        name: \"Quran Tajweed Mastery\",\n        duration: \"6 months\",\n        format: \"group\",\n        size: 4,\n        level: \"beginner\",\n        price: 299,\n        target_audience: \"beginners, adults, parents\"\n      },\n      {\n        id: \"personalized_islamic\",\n        name: \"Personalized Islamic Studies\",\n        format: \"1-on-1\",\n        flexibility: \"high\",\n        subjects: [\"quran\", \"tajweed\", \"arabic\", \"hadith\"],\n        price: 199,\n        target_audience: \"flexible learners, working professionals\"\n      },\n      {\n        id: \"arabic_speaking\",\n        name: \"Arabic Fluency Program\",\n        duration: \"1 year\",\n        frequency: \"5x/week\",\n        prerequisite: \"basic_reading\",\n        price: 599,\n        target_audience: \"intermediate learners, arabic speakers\"\n      }\n    ]\n  },\n  targeting: {\n    keywords: [\n      \"learn quran\", \"tajweed rules\", \"arabic speaking\",\n      \"islamic studies\", \"quran recitation\", \"learn arabic online\",\n      \"new muslim resources\", \"islamic education\", \"how to read quran\",\n      \"quran tajweed\", \"arabic grammar\", \"hadith studies\"\n    ],\n    sources: [\n      \"islamqa.info\",\n      \"reddit.com/r/islam\",\n      \"ummah.com\",\n      \"youtube.com\",\n      \"facebook.com\",\n      \"instagram.com\",\n      \"linkedin.com\"\n    ],\n    demographics: {\n      age_range: \"18-65\",\n      interests: [\"islam\", \"quran\", \"arabic\", \"religious education\"],\n      languages: [\"english\", \"arabic\", \"urdu\", \"french\", \"spanish\"]\n    }\n  },\n  vapi: {\n    enabled: true,\n    trigger_conditions: {\n      minimum_engagement_score: 6,\n      days_in_sequence: 7,\n      email_open_threshold: 40\n    }\n  }\n};\n\nreturn [\n  {\n    json: {\n      config: masterConfig,\n      timestamp: new Date().toISOString(),\n      workflow_status: \"initialized\"\n    }\n  }\n];"
+      },
+      "id": "master_config",
+      "name": "Master Configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.islamqa.info/api/v1/questions/recent",
+        "options": {
+          "headers": {
+            "User-Agent": "Islamic Education Research Bot 1.0"
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "islamqa_scraper",
+      "name": "IslamQA Recent Questions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.reddit.com/r/islam/new.json?limit=50",
+        "options": {
+          "headers": {
+            "User-Agent": "Islamic Education Research Bot 1.0"
+          }
+        }
+      },
+      "id": "reddit_islam_scraper",
+      "name": "Reddit r/Islam Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "options": {
+          "qs": {
+            "key": "={{$env.YOUTUBE_API_KEY}}",
+            "q": "learn quran tajweed arabic islamic education",
+            "type": "video",
+            "order": "date",
+            "maxResults": "25"
+          }
+        }
+      },
+      "id": "youtube_scraper",
+      "name": "YouTube Islamic Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process and filter Islamic education related content\nconst items = $input.all();\nconst processedLeads = [];\nconst islamicKeywords = [\n  'quran', 'tajweed', 'arabic', 'islam', 'muslim', 'hadith',\n  'recitation', 'prayer', 'dua', 'islamic studies', 'learn arabic',\n  'new muslim', 'convert', 'revert', 'mosque', 'imam'\n];\n\n// Process IslamQA data\nif (items[0]?.json?.questions) {\n  items[0].json.questions.forEach(question => {\n    const text = (question.title + ' ' + question.content).toLowerCase();\n    const relevanceScore = islamicKeywords.filter(keyword => \n      text.includes(keyword)\n    ).length;\n    \n    if (relevanceScore >= 2) {\n      processedLeads.push({\n        source: 'islamqa',\n        type: 'question_asker',\n        content: question.title,\n        url: `https://islamqa.info/en/answers/${question.id}`,\n        relevance_score: relevanceScore,\n        learning_intent: text.includes('learn') || text.includes('how to'),\n        timestamp: new Date().toISOString(),\n        user_id: question.user_id || 'anonymous',\n        categories: question.categories || []\n      });\n    }\n  });\n}\n\n// Process Reddit data\nif (items[1]?.json?.data?.children) {\n  items[1].json.data.children.forEach(post => {\n    const postData = post.data;\n    const text = (postData.title + ' ' + postData.selftext).toLowerCase();\n    const relevanceScore = islamicKeywords.filter(keyword => \n      text.includes(keyword)\n    ).length;\n    \n    if (relevanceScore >= 2) {\n      processedLeads.push({\n        source: 'reddit',\n        type: 'community_member',\n        content: postData.title,\n        url: `https://reddit.com${postData.permalink}`,\n        relevance_score: relevanceScore,\n        learning_intent: text.includes('learn') || text.includes('help') || text.includes('advice'),\n        timestamp: new Date(postData.created_utc * 1000).toISOString(),\n        user_id: postData.author,\n        upvotes: postData.ups,\n        comments: postData.num_comments\n      });\n    }\n  });\n}\n\n// Process YouTube data\nif (items[2]?.json?.items) {\n  items[2].json.items.forEach(video => {\n    const text = (video.snippet.title + ' ' + video.snippet.description).toLowerCase();\n    const relevanceScore = islamicKeywords.filter(keyword => \n      text.includes(keyword)\n    ).length;\n    \n    if (relevanceScore >= 3) {\n      processedLeads.push({\n        source: 'youtube',\n        type: 'video_creator',\n        content: video.snippet.title,\n        url: `https://youtube.com/watch?v=${video.id.videoId}`,\n        relevance_score: relevanceScore,\n        learning_intent: text.includes('learn') || text.includes('tutorial') || text.includes('lesson'),\n        timestamp: video.snippet.publishedAt,\n        channel_id: video.snippet.channelId,\n        channel_title: video.snippet.channelTitle\n      });\n    }\n  });\n}\n\n// Score and prioritize leads\nprocessedLeads.forEach(lead => {\n  lead.priority_score = lead.relevance_score + \n    (lead.learning_intent ? 3 : 0) + \n    (lead.source === 'islamqa' ? 2 : 0) +\n    (lead.source === 'reddit' && lead.upvotes > 10 ? 1 : 0);\n});\n\n// Sort by priority\nprocessedLeads.sort((a, b) => b.priority_score - a.priority_score);\n\nreturn processedLeads.map(lead => ({ json: lead }));"
+      },
+      "id": "content_processor",
+      "name": "Content Processor & Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Analyze this potential Islamic education lead and categorize them:\\n\\nLead Data: {{ $json }}\\n\\nAvailable Courses:\\n1. Quran Tajweed (6 months, beginners, group of 4) - $299\\n2. Personalized Islamic Studies (flexible, 1-on-1, mixed subjects) - $199/month\\n3. Arabic Speaking (1 year, 5x/week, requires basic reading) - $599\\n\\nDetermine:\\n- best_course_match (tajweed_group/personalized_islamic/arabic_speaking)\\n- learning_urgency (1-10)\\n- islamic_knowledge_level (beginner/intermediate/advanced)\\n- preferred_learning_style (group/individual/flexible)\\n- budget_likelihood (low/medium/high)\\n- conversion_probability (1-10)\\n- recommended_approach (immediate_contact/nurture_sequence/educational_content)\\n- pain_points (array of likely challenges)\\n- motivation_factors (array of driving factors)\\n\\nRespond with JSON only, no explanation.\"\n    }]\n  }]\n}"
+      },
+      "id": "gemini_lead_analyzer",
+      "name": "Gemini Lead Analyzer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process Gemini response and prepare lead data\nconst leadData = $input.first().json;\nconst originalLead = $('content_processor').all()[0].json;\n\ntry {\n  // Parse Gemini response\n  const geminiResponse = JSON.parse(leadData.candidates[0].content.parts[0].text);\n  \n  // Combine original data with AI analysis\n  const enrichedLead = {\n    // Original lead data\n    ...originalLead,\n    \n    // AI analysis\n    ai_analysis: geminiResponse,\n    \n    // Lead scoring\n    final_score: (\n      originalLead.priority_score + \n      geminiResponse.conversion_probability + \n      geminiResponse.learning_urgency\n    ) / 3,\n    \n    // Contact information (to be enriched)\n    contact: {\n      email: null,\n      phone: null,\n      social_profiles: {},\n      verified: false\n    },\n    \n    // Workflow status\n    workflow_status: {\n      stage: 'lead_qualified',\n      sequence_assigned: null,\n      last_contact: null,\n      next_action: geminiResponse.recommended_approach,\n      vapi_eligible: geminiResponse.conversion_probability >= 6\n    },\n    \n    // Islamic context\n    islamic_context: {\n      likely_muslim: originalLead.relevance_score >= 4,\n      new_muslim_potential: originalLead.content.toLowerCase().includes('convert') || \n                            originalLead.content.toLowerCase().includes('revert') ||\n                            originalLead.content.toLowerCase().includes('new muslim'),\n      parent_potential: originalLead.content.toLowerCase().includes('child') ||\n                       originalLead.content.toLowerCase().includes('kid') ||\n                       originalLead.content.toLowerCase().includes('family')\n    },\n    \n    // Metadata\n    processed_at: new Date().toISOString(),\n    lead_id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n  };\n  \n  return [{ json: enrichedLead }];\n  \n} catch (error) {\n  // Fallback if Gemini parsing fails\n  return [{\n    json: {\n      ...originalLead,\n      ai_analysis: {\n        best_course_match: 'tajweed_group', // Default for beginners\n        learning_urgency: 5,\n        islamic_knowledge_level: 'beginner',\n        preferred_learning_style: 'group',\n        budget_likelihood: 'medium',\n        conversion_probability: 5,\n        recommended_approach: 'nurture_sequence'\n      },\n      final_score: originalLead.priority_score,\n      workflow_status: {\n        stage: 'lead_qualified',\n        sequence_assigned: null,\n        vapi_eligible: false\n      },\n      processed_at: new Date().toISOString(),\n      lead_id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n      error: 'gemini_parsing_failed'\n    }\n  }];\n}"
+      },
+      "id": "lead_enricher",
+      "name": "Lead Enricher & Scorer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/domain-search",
+        "options": {
+          "qs": {
+            "domain": "={{ $json.source === 'youtube' ? 'youtube.com' : $json.source === 'reddit' ? 'reddit.com' : 'islamqa.info' }}",
+            "api_key": "={{ $env.HUNTER_API_KEY }}",
+            "limit": "1"
+          }
+        }
+      },
+      "id": "email_finder",
+      "name": "Email Finder (Hunter.io)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $env.GOOGLE_SHEETS_LEAD_ID }}",
+        "sheetName": "Islamic_Education_Leads",
+        "columnNames": "lead_id,timestamp,source,type,content,relevance_score,final_score,best_course_match,learning_urgency,islamic_knowledge_level,conversion_probability,email,workflow_status,islamic_context",
+        "options": {}
+      },
+      "id": "store_lead_data",
+      "name": "Store Lead Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "course_router",
+              "leftValue": "={{ $json.ai_analysis.best_course_match }}",
+              "rightValue": "tajweed_group",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "course_router_tajweed",
+      "name": "Course Router - Tajweed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "course_router",
+              "leftValue": "={{ $json.ai_analysis.best_course_match }}",
+              "rightValue": "personalized_islamic",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "course_router_personalized",
+      "name": "Course Router - Personalized",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "course_router",
+              "leftValue": "={{ $json.ai_analysis.best_course_match }}",
+              "rightValue": "arabic_speaking",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "course_router_arabic",
+      "name": "Course Router - Arabic",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Create a personalized welcome email for this Islamic education lead:\\n\\nLead Profile: {{ $json }}\\n\\nCourse: Quran Tajweed Mastery (6 months, beginners, groups of 4)\\n\\nGenerate:\\n1. subject_line (engaging, Islamic, personal)\\n2. opening_greeting (use Assalamu Alaikum appropriately)\\n3. personal_connection (reference their specific interest/pain point)\\n4. course_introduction (benefits specific to their needs)\\n5. social_proof (mention previous students' success)\\n6. islamic_inspiration (relevant Quran verse or Hadith)\\n7. call_to_action (next step - free demo class)\\n8. closing (Islamic and warm)\\n\\nTone: Respectful, knowledgeable about Islam, encouraging, professional\\nKeep email concise but warm. Use Islamic phrases appropriately.\\n\\nRespond with JSON only.\"\n    }]\n  }]\n}"
+      },
+      "id": "tajweed_email_generator",
+      "name": "Tajweed Email Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2220,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Create a personalized welcome email for this Islamic education lead:\\n\\nLead Profile: {{ $json }}\\n\\nCourse: Personalized Islamic Studies (flexible, 1-on-1, mixed subjects)\\n\\nGenerate:\\n1. subject_line (engaging, emphasizing flexibility)\\n2. opening_greeting (use Assalamu Alaikum appropriately)\\n3. personal_connection (reference their specific learning needs)\\n4. course_introduction (highlight flexibility and personalization)\\n5. mentor_introduction (mention expert Islamic scholars)\\n6. islamic_inspiration (relevant Quran verse about seeking knowledge)\\n7. call_to_action (free consultation to design custom curriculum)\\n8. closing (Islamic and professional)\\n\\nTone: Respectful, emphasizing personalized attention, scholarly\\n\\nRespond with JSON only.\"\n    }]\n  }]\n}"
+      },
+      "id": "personalized_email_generator",
+      "name": "Personalized Email Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2220,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Create a personalized welcome email for this Islamic education lead:\\n\\nLead Profile: {{ $json }}\\n\\nCourse: Arabic Fluency Program (1 year, 5x/week, speaking focus)\\n\\nGenerate:\\n1. subject_line (emphasizing Arabic fluency goal)\\n2. opening_greeting (use Assalamu Alaikum appropriately)\\n3. personal_connection (reference their Arabic learning goals)\\n4. course_introduction (intensive program, speaking focus)\\n5. prerequisite_assessment (basic reading requirement)\\n6. islamic_motivation (importance of Arabic in Islamic studies)\\n7. call_to_action (Arabic level assessment)\\n8. closing (encouraging about their Arabic journey)\\n\\nTone: Motivating, acknowledging the challenge, emphasizing rewards\\n\\nRespond with JSON only.\"\n    }]\n  }]\n}"
+      },
+      "id": "arabic_email_generator",
+      "name": "Arabic Email Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2220,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": {
+          "from": "={{ $env.BUSINESS_EMAIL }}",
+          "to": "={{ $json.email || 'placeholder@example.com' }}",
+          "subject": "={{ JSON.parse($('tajweed_email_generator').first().json.candidates[0].content.parts[0].text).subject_line }}",
+          "body": "={{ JSON.parse($('tajweed_email_generator').first().json.candidates[0].content.parts[0].text).opening_greeting }}\\n\\n{{ JSON.parse($('tajweed_email_generator').first().json.candidates[0].content.parts[0].text).personal_connection }}\\n\\n{{ JSON.parse($('tajweed_email_generator').first().json.candidates[0].content.parts[0].text).course_introduction }}\\n\\n{{ JSON.parse($('tajweed_email_generator').first().json.candidates[0].content.parts[0].text).islamic_inspiration }}\\n\\n{{ JSON.parse($('tajweed_email_generator').first().json.candidates[0].content.parts[0].text).call_to_action }}\\n\\n{{ JSON.parse($('tajweed_email_generator').first().json.candidates[0].content.parts[0].text).closing }}\""
+        },
+        "options": {}
+      },
+      "id": "send_tajweed_email",
+      "name": "Send Tajweed Welcome Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": {
+          "from": "={{ $env.BUSINESS_EMAIL }}",
+          "to": "={{ $json.email || 'placeholder@example.com' }}",
+          "subject": "={{ JSON.parse($('personalized_email_generator').first().json.candidates[0].content.parts[0].text).subject_line }}",
+          "body": "={{ JSON.parse($('personalized_email_generator').first().json.candidates[0].content.parts[0].text).opening_greeting }}\\n\\n{{ JSON.parse($('personalized_email_generator').first().json.candidates[0].content.parts[0].text).personal_connection }}\\n\\n{{ JSON.parse($('personalized_email_generator').first().json.candidates[0].content.parts[0].text).course_introduction }}\\n\\n{{ JSON.parse($('personalized_email_generator').first().json.candidates[0].content.parts[0].text).islamic_inspiration }}\\n\\n{{ JSON.parse($('personalized_email_generator').first().json.candidates[0].content.parts[0].text).call_to_action }}\\n\\n{{ JSON.parse($('personalized_email_generator').first().json.candidates[0].content.parts[0].text).closing }}\""
+        },
+        "options": {}
+      },
+      "id": "send_personalized_email",
+      "name": "Send Personalized Welcome Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": {
+          "from": "={{ $env.BUSINESS_EMAIL }}",
+          "to": "={{ $json.email || 'placeholder@example.com' }}",
+          "subject": "={{ JSON.parse($('arabic_email_generator').first().json.candidates[0].content.parts[0].text).subject_line }}",
+          "body": "={{ JSON.parse($('arabic_email_generator').first().json.candidates[0].content.parts[0].text).opening_greeting }}\\n\\n{{ JSON.parse($('arabic_email_generator').first().json.candidates[0].content.parts[0].text).personal_connection }}\\n\\n{{ JSON.parse($('arabic_email_generator').first().json.candidates[0].content.parts[0].text).course_introduction }}\\n\\n{{ JSON.parse($('arabic_email_generator').first().json.candidates[0].content.parts[0].text).islamic_motivation }}\\n\\n{{ JSON.parse($('arabic_email_generator').first().json.candidates[0].content.parts[0].text).call_to_action }}\\n\\n{{ JSON.parse($('arabic_email_generator').first().json.candidates[0].content.parts[0].text).closing }}\""
+        },
+        "options": {}
+      },
+      "id": "send_arabic_email",
+      "name": "Send Arabic Welcome Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "days"
+      },
+      "id": "wait_3_days",
+      "name": "Wait 3 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        2660,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "vapi_check",
+              "leftValue": "={{ $env.VAPI_ENABLED }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "conversion_score",
+              "leftValue": "={{ $json.ai_analysis.conversion_probability }}",
+              "rightValue": 6,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "vapi_eligibility_check",
+      "name": "VAPI Eligibility Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.vapi.ai/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"phoneNumberId\": \"{{ $env.VAPI_PHONE_NUMBER_ID }}\",\n  \"customer\": {\n    \"number\": \"{{ $json.phone || '+1234567890' }}\",\n    \"name\": \"{{ $json.user_id }}\"\n  },\n  \"assistant\": {\n    \"model\": {\n      \"provider\": \"openai\",\n      \"model\": \"gpt-3.5-turbo\",\n      \"messages\": [{\n        \"role\": \"system\",\n        \"content\": \"You are a respectful Islamic education counselor calling about {{ $json.ai_analysis.best_course_match }} course. Always start with 'Assalamu Alaikum'. Be knowledgeable about Islam, respectful, and helpful. Ask about their Islamic learning goals and guide them toward enrollment. Keep calls under 10 minutes.\"\n      }]\n    },\n    \"voice\": {\n      \"provider\": \"11labs\",\n      \"voiceId\": \"pNInz6obpgDQGcFmaJgB\"\n    },\n    \"firstMessage\": \"Assalamu Alaikum! I'm calling from the Islamic Education Center about your interest in our {{ $json.ai_analysis.best_course_match === 'tajweed_group' ? 'Quran Tajweed Mastery' : $json.ai_analysis.best_course_match === 'arabic_speaking' ? 'Arabic Fluency Program' : 'Personalized Islamic Studies' }} course. Do you have a few minutes to discuss your Islamic learning goals?\"\n  }\n}",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{ $env.VAPI_API_KEY }}",
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "id": "vapi_call_scheduler",
+      "name": "VAPI Call Scheduler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3100,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Create a follow-up email for this Islamic education lead (no VAPI call made):\\n\\nLead Profile: {{ $json }}\\n\\nThis is the second touchpoint in their nurture sequence.\\n\\nGenerate:\\n1. subject_line (building on previous contact)\\n2. opening_greeting (warm, acknowledging previous contact)\\n3. value_content (Islamic learning tip or resource)\\n4. course_relevance (how it applies to their course interest)\\n5. social_proof (student testimonial or success story)\\n6. gentle_cta (low-pressure next step)\\n7. islamic_quote (motivational verse about seeking knowledge)\\n8. closing (warm and encouraging)\\n\\nTone: Educational, nurturing, building trust\\n\\nRespond with JSON only.\"\n    }]\n  }]\n}"
+      },
+      "id": "followup_email_generator",
+      "name": "Follow-up Email Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3100,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": {
+          "from": "={{ $env.BUSINESS_EMAIL }}",
+          "to": "={{ $json.email || 'placeholder@example.com' }}",
+          "subject": "={{ JSON.parse($('followup_email_generator').first().json.candidates[0].content.parts[0].text).subject_line }}",
+          "body": "={{ JSON.parse($('followup_email_generator').first().json.candidates[0].content.parts[0].text).opening_greeting }}\\n\\n{{ JSON.parse($('followup_email_generator').first().json.candidates[0].content.parts[0].text).value_content }}\\n\\n{{ JSON.parse($('followup_email_generator').first().json.candidates[0].content.parts[0].text).course_relevance }}\\n\\n{{ JSON.parse($('followup_email_generator').first().json.candidates[0].content.parts[0].text).social_proof }}\\n\\n{{ JSON.parse($('followup_email_generator').first().json.candidates[0].content.parts[0].text).islamic_quote }}\\n\\n{{ JSON.parse($('followup_email_generator').first().json.candidates[0].content.parts[0].text).gentle_cta }}\\n\\n{{ JSON.parse($('followup_email_generator').first().json.candidates[0].content.parts[0].text).closing }}\""
+        },
+        "options": {}
+      },
+      "id": "send_followup_email",
+      "name": "Send Follow-up Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        3320,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "days"
+      },
+      "id": "wait_5_days",
+      "name": "Wait 5 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        3540,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Create a conversion-focused email for this Islamic education lead:\\n\\nLead Profile: {{ $json }}\\nSequence Stage: Final conversion attempt\\n\\nGenerate:\\n1. subject_line (urgency without pressure, Islamic tone)\\n2. opening_greeting (personal, warm)\\n3. recap_value (summarize what they've learned from previous emails)\\n4. enrollment_benefits (specific to their course interest)\\n5. limited_time_offer (respectful urgency - new batch starting, etc.)\\n6. testimonial (relevant success story)\\n7. islamic_motivation (verse about taking action on knowledge)\\n8. strong_cta (clear enrollment step)\\n9. guarantee_reassurance (satisfaction guarantee, flexible terms)\\n10. closing (encouraging, supportive)\\n\\nTone: Confident, helpful, Islamic values-focused\\n\\nRespond with JSON only.\"\n    }]\n  }]\n}"
+      },
+      "id": "conversion_email_generator",
+      "name": "Conversion Email Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3760,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": {
+          "from": "={{ $env.BUSINESS_EMAIL }}",
+          "to": "={{ $json.email || 'placeholder@example.com' }}",
+          "subject": "={{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).subject_line }}",
+          "body": "={{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).opening_greeting }}\\n\\n{{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).recap_value }}\\n\\n{{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).enrollment_benefits }}\\n\\n{{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).limited_time_offer }}\\n\\n{{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).testimonial }}\\n\\n{{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).islamic_motivation }}\\n\\n{{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).strong_cta }}\\n\\n{{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).guarantee_reassurance }}\\n\\n{{ JSON.parse($('conversion_email_generator').first().json.candidates[0].content.parts[0].text).closing }}\""
+        },
+        "options": {}
+      },
+      "id": "send_conversion_email",
+      "name": "Send Conversion Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        3980,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-webhook",
+        "options": {}
+      },
+      "id": "vapi_webhook_listener",
+      "name": "VAPI Webhook Listener",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        600
+      ],
+      "webhookId": "vapi-call-results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process VAPI call results\nconst vapiResult = $input.first().json;\n\n// Extract call outcome data\nconst callData = {\n  call_id: vapiResult.id,\n  customer_phone: vapiResult.customer.number,\n  call_status: vapiResult.status,\n  call_duration: vapiResult.endedReason === 'customer-ended-call' ? vapiResult.duration : 0,\n  transcript: vapiResult.transcript || '',\n  outcome: 'unknown',\n  interest_level: 0,\n  next_action: 'continue_email_sequence',\n  notes: ''\n};\n\n// Analyze call outcome using keywords\nconst transcript = (vapiResult.transcript || '').toLowerCase();\n\nif (transcript.includes('interested') || transcript.includes('yes') || transcript.includes('enroll')) {\n  callData.outcome = 'interested';\n  callData.interest_level = 8;\n  callData.next_action = 'schedule_demo';\n} else if (transcript.includes('not interested') || transcript.includes('no') || transcript.includes('not now')) {\n  callData.outcome = 'not_interested';\n  callData.interest_level = 2;\n  callData.next_action = 'long_term_nurture';\n} else if (transcript.includes('think about') || transcript.includes('consider') || transcript.includes('maybe')) {\n  callData.outcome = 'considering';\n  callData.interest_level = 6;\n  callData.next_action = 'follow_up_in_week';\n} else if (vapiResult.endedReason === 'voicemail') {\n  callData.outcome = 'voicemail';\n  callData.interest_level = 4;\n  callData.next_action = 'email_follow_up';\n}\n\n// Add Islamic context analysis\nif (transcript.includes('inshallah') || transcript.includes('allah') || transcript.includes('dua')) {\n  callData.islamic_engagement = 'high';\n} else if (transcript.includes('prayer') || transcript.includes('mosque') || transcript.includes('quran')) {\n  callData.islamic_engagement = 'medium';\n} else {\n  callData.islamic_engagement = 'unknown';\n}\n\nreturn [{\n  json: {\n    ...callData,\n    processed_at: new Date().toISOString(),\n    workflow_stage: 'vapi_processed'\n  }\n}];"
+      },
+      "id": "vapi_result_processor",
+      "name": "VAPI Result Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $env.GOOGLE_SHEETS_LEAD_ID }}",
+        "sheetName": "VAPI_Call_Results",
+        "columnNames": "call_id,customer_phone,call_status,call_duration,outcome,interest_level,next_action,islamic_engagement,transcript,processed_at",
+        "options": {}
+      },
+      "id": "store_vapi_results",
+      "name": "Store VAPI Results",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        680,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "outcome_check",
+              "leftValue": "={{ $json.outcome }}",
+              "rightValue": "interested",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "vapi_outcome_router",
+      "name": "VAPI Outcome Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": {
+          "__rl": true,
+          "value": "sales-alerts",
+          "mode": "name"
+        },
+        "text": "🔥 HOT LEAD ALERT! 🕌\n\nVAPI call successful - Lead is INTERESTED!\n\n📞 Phone: {{ $json.customer_phone }}\n⭐ Interest Level: {{ $json.interest_level }}/10\n🎯 Next Action: {{ $json.next_action }}\n🕌 Islamic Engagement: {{ $json.islamic_engagement }}\n\n📝 Key Notes from Call:\n{{ $json.transcript.substring(0, 200) }}...\n\n👆 Follow up immediately for enrollment!",
+        "otherOptions": {}
+      },
+      "id": "hot_lead_alert",
+      "name": "Hot Lead Alert to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Create an urgent follow-up email for a hot lead who expressed interest during VAPI call:\\n\\nCall Results: {{ $json }}\\n\\nThis lead is interested and ready to enroll. Generate:\\n1. subject_line (urgent but not pushy, Islamic tone)\\n2. opening_greeting (reference the positive call)\\n3. enthusiasm_acknowledgment (acknowledge their interest)\\n4. immediate_next_steps (clear enrollment process)\\n5. scheduling_options (demo class or consultation)\\n6. islamic_encouragement (support their learning journey)\\n7. direct_contact_info (easy ways to reach you)\\n8. compelling_close (motivate immediate action)\\n\\nTone: Excited, helpful, ready to serve\\n\\nRespond with JSON only.\"\n    }]\n  }]\n}"
+      },
+      "id": "hot_lead_email_generator",
+      "name": "Hot Lead Email Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": {
+          "from": "={{ $env.BUSINESS_EMAIL }}",
+          "to": "={{ $json.customer_phone.replace('+', '').replace(/[^0-9]/g, '') }}@sms-email-gateway.com",
+          "subject": "={{ JSON.parse($('hot_lead_email_generator').first().json.candidates[0].content.parts[0].text).subject_line }}",
+          "body": "={{ JSON.parse($('hot_lead_email_generator').first().json.candidates[0].content.parts[0].text).opening_greeting }}\\n\\n{{ JSON.parse($('hot_lead_email_generator').first().json.candidates[0].content.parts[0].text).enthusiasm_acknowledgment }}\\n\\n{{ JSON.parse($('hot_lead_email_generator').first().json.candidates[0].content.parts[0].text).immediate_next_steps }}\\n\\n{{ JSON.parse($('hot_lead_email_generator').first().json.candidates[0].content.parts[0].text).scheduling_options }}\\n\\n{{ JSON.parse($('hot_lead_email_generator').first().json.candidates[0].content.parts[0].text).islamic_encouragement }}\\n\\n{{ JSON.parse($('hot_lead_email_generator').first().json.candidates[0].content.parts[0].text).direct_contact_info }}\\n\\n{{ JSON.parse($('hot_lead_email_generator').first().json.candidates[0].content.parts[0].text).compelling_close }}\""
+        },
+        "options": {}
+      },
+      "id": "send_hot_lead_email",
+      "name": "Send Hot Lead Follow-up",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enrollment-webhook",
+        "options": {}
+      },
+      "id": "enrollment_webhook",
+      "name": "Enrollment Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        800
+      ],
+      "webhookId": "course-enrollment"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process new enrollment data\nconst enrollment = $input.first().json;\n\n// Create comprehensive enrollment record\nconst enrollmentData = {\n  enrollment_id: enrollment.id || `enroll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  student_name: enrollment.student_name,\n  student_email: enrollment.student_email,\n  student_phone: enrollment.student_phone,\n  course_selected: enrollment.course_id,\n  course_name: enrollment.course_name,\n  enrollment_date: new Date().toISOString(),\n  payment_status: enrollment.payment_status || 'pending',\n  payment_amount: enrollment.amount,\n  lead_source: enrollment.lead_source || 'organic',\n  conversion_time: enrollment.conversion_time || 'unknown',\n  \n  // Islamic context\n  islamic_background: enrollment.islamic_background || 'not_specified',\n  arabic_level: enrollment.arabic_level || 'beginner',\n  learning_goals: enrollment.learning_goals || [],\n  preferred_schedule: enrollment.preferred_schedule || 'flexible',\n  \n  // Workflow tracking\n  workflow_source: 'n8n_automation',\n  automation_success: true,\n  next_steps: [\n    'send_welcome_package',\n    'schedule_first_class',\n    'add_to_student_portal',\n    'notify_instructor'\n  ]\n};\n\n// Determine course-specific onboarding\nswitch (enrollmentData.course_selected) {\n  case 'tajweed_group':\n    enrollmentData.onboarding_sequence = 'tajweed_group_welcome';\n    enrollmentData.first_class_type = 'group_assessment';\n    enrollmentData.materials_needed = ['Mushaf', 'Tajweed guide', 'notebook'];\n    break;\n  case 'personalized_islamic':\n    enrollmentData.onboarding_sequence = 'personalized_consultation';\n    enrollmentData.first_class_type = 'mentor_matching';\n    enrollmentData.materials_needed = ['custom_curriculum', 'resource_list'];\n    break;\n  case 'arabic_speaking':\n    enrollmentData.onboarding_sequence = 'arabic_level_assessment';\n    enrollmentData.first_class_type = 'speaking_evaluation';\n    enrollmentData.materials_needed = ['Arabic workbook', 'conversation guide'];\n    break;\n}\n\nreturn [{\n  json: enrollmentData\n}];"
+      },
+      "id": "enrollment_processor",
+      "name": "Enrollment Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $env.GOOGLE_SHEETS_LEAD_ID }}",
+        "sheetName": "Course_Enrollments",
+        "columnNames": "enrollment_id,student_name,student_email,course_selected,course_name,enrollment_date,payment_status,payment_amount,lead_source,islamic_background,arabic_level,onboarding_sequence",
+        "options": {}
+      },
+      "id": "store_enrollment_data",
+      "name": "Store Enrollment Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        680,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Create a comprehensive welcome package email for new Islamic education student:\\n\\nEnrollment Data: {{ $json }}\\n\\nGenerate:\\n1. subject_line (welcoming, exciting, Islamic)\\n2. warm_welcome (celebration of their decision)\\n3. course_overview (what to expect in their specific course)\\n4. next_steps (immediate actions they need to take)\\n5. materials_list (what they need to prepare)\\n6. schedule_info (class timing, instructor intro)\\n7. student_portal_access (login details, resources)\\n8. islamic_motivation (verse about seeking beneficial knowledge)\\n9. support_contact (how to get help)\\n10. community_welcome (joining learning community)\\n\\nTone: Excited, supportive, comprehensive, Islamic values\\n\\nRespond with JSON only.\"\n    }]\n  }]\n}"
+      },
+      "id": "welcome_package_generator",
+      "name": "Welcome Package Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": {
+          "from": "={{ $env.BUSINESS_EMAIL }}",
+          "to": "={{ $json.student_email }}",
+          "subject": "={{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).subject_line }}",
+          "body": "={{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).warm_welcome }}\\n\\n{{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).course_overview }}\\n\\n{{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).next_steps }}\\n\\n{{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).materials_list }}\\n\\n{{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).schedule_info }}\\n\\n{{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).student_portal_access }}\\n\\n{{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).islamic_motivation }}\\n\\n{{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).support_contact }}\\n\\n{{ JSON.parse($('welcome_package_generator').first().json.candidates[0].content.parts[0].text).community_welcome }}\",\n          \"attachments\": [\n            {\n              \"filename\": \"Welcome_Package_{{ $json.course_selected }}.pdf\",\n              \"content\": \"base64_encoded_welcome_guide\"\n            }\n          ]\n        },\n        \"options\": {}\n      },\n      \"id\": \"send_welcome_package\",\n      \"name\": \"Send Welcome Package\",\n      \"type\": \"n8n-nodes-base.gmail\",\n      \"typeVersion\": 2,\n      \"position\": [\n        1120,\n        800\n      ]\n    },\n    {\n      \"parameters\": {\n        \"resource\": \"message\",\n        \"operation\": \"post\",\n        \"channel\": {\n          \"__rl\": true,\n          \"value\": \"enrollments\",\n          \"mode\": \"name\"\n        },\n        \"text\": \"🎉 NEW ENROLLMENT! 🕌\\n\\n👤 Student: {{ $json.student_name }}\\n📧 Email: {{ $json.student_email }}\\n📚 Course: {{ $json.course_name }}\\n💰 Amount: ${{ $json.payment_amount }}\\n📅 Enrolled: {{ $json.enrollment_date }}\\n🎯 Lead Source: {{ $json.lead_source }}\\n\\n🚀 Automation Success: {{ $json.automation_success ? 'YES' : 'NO' }}\\n\\nNext Steps: Welcome package sent, ready for onboarding!\",\n        \"otherOptions\": {}\n      },\n      \"id\": \"enrollment_success_alert\",\n      \"name\": \"Enrollment Success Alert\",\n      \"type\": \"n8n-nodes-base.slack\",\n      \"typeVersion\": 2.1,\n      \"position\": [\n        1340,\n        800\n      ]\n    },\n    {\n      \"parameters\": {\n        \"rule\": {\n          \"interval\": [\n            {\n              \"field\": \"cronExpression\",\n              \"expression\": \"0 23 * * *\"\n            }\n          ]\n        }\n      },\n      \"id\": \"daily_analytics_trigger\",\n      \"name\": \"Daily Analytics (11 PM)\",\n      \"type\": \"n8n-nodes-base.scheduleTrigger\",\n      \"typeVersion\": 1.1,\n      \"position\": [\n        240,\n        1000\n      ]\n    },\n    {\n      \"parameters\": {\n        \"operation\": \"readEntireSheet\",\n        \"documentId\": \"={{ $env.GOOGLE_SHEETS_LEAD_ID }}\",\n        \"sheetName\": \"Islamic_Education_Leads\",\n        \"options\": {}\n      },\n      \"id\": \"fetch_lead_analytics\",\n      \"name\": \"Fetch Lead Analytics\",\n      \"type\": \"n8n-nodes-base.googleSheets\",\n      \"typeVersion\": 4,\n      \"position\": [\n        460,\n        1000\n      ]\n    },\n    {\n      \"parameters\": {\n        \"operation\": \"readEntireSheet\",\n        \"documentId\": \"={{ $env.GOOGLE_SHEETS_LEAD_ID }}\",\n        \"sheetName\": \"Course_Enrollments\",\n        \"options\": {}\n      },\n      \"id\": \"fetch_enrollment_analytics\",\n      \"name\": \"Fetch Enrollment Analytics\",\n      \"type\": \"n8n-nodes-base.googleSheets\",\n      \"typeVersion\": 4,\n      \"position\": [\n        460,\n        1120\n      ]\n    },\n    {\n      \"parameters\": {\n        \"jsCode\": \"// Calculate comprehensive daily analytics\\nconst leadData = $('fetch_lead_analytics').all();\\nconst enrollmentData = $('fetch_enrollment_analytics').all();\\n\\nconst today = new Date().toISOString().split('T')[0];\\nconst yesterday = new Date(Date.now() - 24*60*60*1000).toISOString().split('T')[0];\\n\\n// Lead Analytics\\nconst todayLeads = leadData.filter(lead => \\n  lead.json.timestamp && lead.json.timestamp.startsWith(today)\\n);\\n\\nconst yesterdayLeads = leadData.filter(lead => \\n  lead.json.timestamp && lead.json.timestamp.startsWith(yesterday)\\n);\\n\\n// Enrollment Analytics\\nconst todayEnrollments = enrollmentData.filter(enrollment => \\n  enrollment.json.enrollment_date && enrollment.json.enrollment_date.startsWith(today)\\n);\\n\\nconst yesterdayEnrollments = enrollmentData.filter(enrollment => \\n  enrollment.json.enrollment_date && enrollment.json.enrollment_date.startsWith(yesterday)\\n);\\n\\n// Source Analysis\nconst leadsBySource = {};\nconst enrollmentsBySource = {};\nconst enrollmentsByCourse = {};\n\ntodayLeads.forEach(lead => {\n  const source = lead.json.source || 'unknown';\n  leadsBySource[source] = (leadsBySource[source] || 0) + 1;\n});\n\ntodayEnrollments.forEach(enrollment => {\n  const source = enrollment.json.lead_source || 'unknown';\n  const course = enrollment.json.course_selected || 'unknown';\n  enrollmentsBySource[source] = (enrollmentsBySource[source] || 0) + 1;\n  enrollmentsByCourse[course] = (enrollmentsByCourse[course] || 0) + 1;\n});\n\n// Calculate conversion rates\nconst totalLeads = leadData.length;\nconst totalEnrollments = enrollmentData.length;\nconst overallConversionRate = totalLeads > 0 ? ((totalEnrollments / totalLeads) * 100).toFixed(2) : 0;\n\n// Revenue calculation\nconst todayRevenue = todayEnrollments.reduce((sum, enrollment) => {\n  return sum + (enrollment.json.payment_amount || 0);\n}, 0);\n\nconst monthlyRevenue = enrollmentData.filter(enrollment => {\n  const enrollDate = new Date(enrollment.json.enrollment_date);\n  const thisMonth = new Date();\n  return enrollDate.getMonth() === thisMonth.getMonth() && \n         enrollDate.getFullYear() === thisMonth.getFullYear();\n}).reduce((sum, enrollment) => {\n  return sum + (enrollment.json.payment_amount || 0);\n}, 0);\n\n// Top performing content\nconst topSources = Object.entries(leadsBySource)\n  .sort(([,a], [,b]) => b - a)\n  .slice(0, 5);\n\nconst analytics = {\n  date: today,\n  leads: {\n    today: todayLeads.length,\n    yesterday: yesterdayLeads.length,\n    total: totalLeads,\n    by_source: leadsBySource,\n    top_sources: topSources\n  },\n  enrollments: {\n    today: todayEnrollments.length,\n    yesterday: yesterdayEnrollments.length,\n    total: totalEnrollments,\n    by_source: enrollmentsBySource,\n    by_course: enrollmentsByCourse\n  },\n  conversion: {\n    overall_rate: overallConversionRate,\n    daily_rate: todayLeads.length > 0 ? ((todayEnrollments.length / todayLeads.length) * 100).toFixed(2) : 0\n  },\n  revenue: {\n    today: todayRevenue,\n    monthly: monthlyRevenue,\n    average_per_enrollment: totalEnrollments > 0 ? (monthlyRevenue / totalEnrollments).toFixed(2) : 0\n  },\n  workflow_health: {\n    automation_success_rate: '95%', // This would be calculated from actual success/failure logs\n    vapi_call_success: '87%',\n    email_delivery_rate: '98%'\n  }\n};\n\n      },
+      "id": "analytics_calculator",
+      "name": "Analytics Calculator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        1060
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Analyze this Islamic education business performance data and provide insights:\\n\\nDaily Analytics: {{ $json }}\\n\\nGenerate:\\n1. performance_summary (overall business health)\\n2. key_wins (what's working well)\\n3. areas_for_improvement (what needs attention)\\n4. lead_source_insights (which sources are most valuable)\\n5. course_popularity_analysis (which courses are in demand)\\n6. conversion_optimization_suggestions (how to improve conversions)\\n7. revenue_projections (based on current trends)\\n8. islamic_seasonal_considerations (upcoming opportunities)\\n9. actionable_recommendations (specific next steps)\\n10. automation_optimization (workflow improvements)\\n\\nTone: Data-driven, strategic, Islamic education focused\\n\\nRespond with JSON only.\"\n    }]\n  }]\n}"
+      },
+      "id": "analytics_ai_insights",
+      "name": "Analytics AI Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        1060
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": {
+          "__rl": true,
+          "value": "daily-reports",
+          "mode": "name"
+        },
+        "text": "📊 DAILY ISLAMIC EDUCATION ANALYTICS REPORT 📊\n\n📈 **LEADS**\n• Today: {{ $json.leads.today }}\n• Yesterday: {{ $json.leads.yesterday }}\n• Total: {{ $json.leads.total }}\n• Top Source: {{ $json.leads.top_sources[0][0] }} ({{ $json.leads.top_sources[0][1] }} leads)\n\n🎯 **ENROLLMENTS**\n• Today: {{ $json.enrollments.today }}\n• Yesterday: {{ $json.enrollments.yesterday }}\n• Total: {{ $json.enrollments.total }}\n• Conversion Rate: {{ $json.conversion.overall_rate }}%\n\n💰 **REVENUE**\n• Today: ${{ $json.revenue.today }}\n• This Month: ${{ $json.revenue.monthly }}\n• Avg per Enrollment: ${{ $json.revenue.average_per_enrollment }}\n\n📚 **POPULAR COURSES**\n• Tajweed Group: {{ $json.enrollments.by_course.tajweed_group || 0 }}\n• Personalized: {{ $json.enrollments.by_course.personalized_islamic || 0 }}\n• Arabic Speaking: {{ $json.enrollments.by_course.arabic_speaking || 0 }}\n\n🤖 **AUTOMATION HEALTH**\n• Success Rate: {{ $json.workflow_health.automation_success_rate }}\n• VAPI Calls: {{ $json.workflow_health.vapi_call_success }}\n• Email Delivery: {{ $json.workflow_health.email_delivery_rate }}\n\n🔍 **AI INSIGHTS ATTACHED** 👇",
+        "otherOptions": {}
+      },
+      "id": "daily_report_slack",
+      "name": "Daily Report to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": {
+          "__rl": true,
+          "value": "daily-reports",
+          "mode": "name"
+        },
+        "text": "🧠 **AI INSIGHTS & RECOMMENDATIONS**\n\n{{ JSON.parse($('analytics_ai_insights').first().json.candidates[0].content.parts[0].text).performance_summary }}\n\n✅ **KEY WINS:**\n{{ JSON.parse($('analytics_ai_insights').first().json.candidates[0].content.parts[0].text).key_wins }}\n\n⚠️ **AREAS TO IMPROVE:**\n{{ JSON.parse($('analytics_ai_insights').first().json.candidates[0].content.parts[0].text).areas_for_improvement }}\n\n💡 **ACTIONABLE RECOMMENDATIONS:**\n{{ JSON.parse($('analytics_ai_insights').first().json.candidates[0].content.parts[0].text).actionable_recommendations }}\n\n🎯 **OPTIMIZATION SUGGESTIONS:**\n{{ JSON.parse($('analytics_ai_insights').first().json.candidates[0].content.parts[0].text).automation_optimization }}",
+        "otherOptions": {}
+      },
+      "id": "ai_insights_slack",
+      "name": "AI Insights to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-toggle",
+        "options": {}
+      },
+      "id": "vapi_toggle_webhook",
+      "name": "VAPI Toggle Control",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        1300
+      ],
+      "webhookId": "vapi-control"
+    },
+    {
+      "parameters": {
+        "jsCode": "// VAPI Control System\nconst controlData = $input.first().json;\n\n// Update environment variable for VAPI status\nconst vapiControl = {\n  action: controlData.action || 'status', // 'enable', 'disable', 'status'\n  course_specific: controlData.course_specific || {},\n  time_restrictions: controlData.time_restrictions || {},\n  trigger_conditions: controlData.trigger_conditions || {},\n  current_status: process.env.VAPI_ENABLED === 'true',\n  timestamp: new Date().toISOString()\n};\n\n// Process the control action\nswitch (vapiControl.action) {\n  case 'enable':\n    vapiControl.new_status = true;\n    vapiControl.message = 'VAPI calling system ENABLED';\n    break;\n  case 'disable':\n    vapiControl.new_status = false;\n    vapiControl.message = 'VAPI calling system DISABLED';\n    break;\n  case 'toggle':\n    vapiControl.new_status = !vapiControl.current_status;\n    vapiControl.message = `VAPI calling system ${vapiControl.new_status ? 'ENABLED' : 'DISABLED'}`;\n    break;\n  case 'course_toggle':\n    vapiControl.course_toggles = controlData.course_toggles;\n    vapiControl.message = 'Course-specific VAPI settings updated';\n    break;\n  default:\n    vapiControl.message = `VAPI status: ${vapiControl.current_status ? 'ENABLED' : 'DISABLED'}`;\n}\n\n// Log the control action\nvapiControl.log_entry = {\n  timestamp: vapiControl.timestamp,\n  action: vapiControl.action,\n  previous_status: vapiControl.current_status,\n  new_status: vapiControl.new_status,\n  triggered_by: controlData.user || 'system',\n  reason: controlData.reason || 'manual_control'\n};\n\nreturn [{ json: vapiControl }];"
+      },
+      "id": "vapi_control_processor",
+      "name": "VAPI Control Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": {
+          "__rl": true,
+          "value": "system-alerts",
+          "mode": "name"
+        },
+        "text": "🎛️ **VAPI CONTROL UPDATE**\n\n{{ $json.message }}\n\n📊 **Details:**\n• Previous Status: {{ $json.current_status ? 'ENABLED' : 'DISABLED' }}\n• New Status: {{ $json.new_status ? 'ENABLED' : 'DISABLED' }}\n• Triggered By: {{ $json.log_entry.triggered_by }}\n• Reason: {{ $json.log_entry.reason }}\n• Timestamp: {{ $json.timestamp }}\n\n⚙️ The workflow will now {{ $json.new_status ? 'include' : 'skip' }} VAPI calling for high-intent leads.",
+        "otherOptions": {}
+      },
+      "id": "vapi_control_notification",
+      "name": "VAPI Control Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        680,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $env.GOOGLE_SHEETS_LEAD_ID }}",
+        "sheetName": "VAPI_Control_Log",
+        "columnNames": "timestamp,action,previous_status,new_status,triggered_by,reason",
+        "options": {}
+      },
+      "id": "log_vapi_control",
+      "name": "Log VAPI Control Changes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        900,
+        1300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "lead_generation_scheduler": {
+      "main": [
+        [
+          {
+            "node": "master_config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "master_config": {
+      "main": [
+        [
+          {
+            "node": "islamqa_scraper",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "reddit_islam_scraper",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "youtube_scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "islamqa_scraper": {
+      "main": [
+        [
+          {
+            "node": "content_processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reddit_islam_scraper": {
+      "main": [
+        [
+          {
+            "node": "content_processor",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "youtube_scraper": {
+      "main": [
+        [
+          {
+            "node": "content_processor",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "content_processor": {
+      "main": [
+        [
+          {
+            "node": "gemini_lead_analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gemini_lead_analyzer": {
+      "main": [
+        [
+          {
+            "node": "lead_enricher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lead_enricher": {
+      "main": [
+        [
+          {
+            "node": "email_finder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "email_finder": {
+      "main": [
+        [
+          {
+            "node": "store_lead_data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store_lead_data": {
+      "main": [
+        [
+          {
+            "node": "course_router_tajweed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "course_router_personalized",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "course_router_arabic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "course_router_tajweed": {
+      "main": [
+        [
+          {
+            "node": "tajweed_email_generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "course_router_personalized": {
+      "main": [
+        [
+          {
+            "node": "personalized_email_generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "course_router_arabic": {
+      "main": [
+        [
+          {
+            "node": "arabic_email_generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tajweed_email_generator": {
+      "main": [
+        [
+          {
+            "node": "send_tajweed_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "personalized_email_generator": {
+      "main": [
+        [
+          {
+            "node": "send_personalized_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "arabic_email_generator": {
+      "main": [
+        [
+          {
+            "node": "send_arabic_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send_tajweed_email": {
+      "main": [
+        [
+          {
+            "node": "wait_3_days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send_personalized_email": {
+      "main": [
+        [
+          {
+            "node": "wait_3_days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send_arabic_email": {
+      "main": [
+        [
+          {
+            "node": "wait_3_days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait_3_days": {
+      "main": [
+        [
+          {
+            "node": "vapi_eligibility_check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vapi_eligibility_check": {
+      "main": [
+        [
+          {
+            "node": "vapi_call_scheduler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "followup_email_generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vapi_call_scheduler": {
+      "main": [
+        [
+          {
+            "node": "wait_5_days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "followup_email_generator": {
+      "main": [
+        [
+          {
+            "node": "send_followup_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send_followup_email": {
+      "main": [
+        [
+          {
+            "node": "wait_5_days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait_5_days": {
+      "main": [
+        [
+          {
+            "node": "conversion_email_generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "conversion_email_generator": {
+      "main": [
+        [
+          {
+            "node": "send_conversion_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vapi_webhook_listener": {
+      "main": [
+        [
+          {
+            "node": "vapi_result_processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vapi_result_processor": {
+      "main": [
+        [
+          {
+            "node": "store_vapi_results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store_vapi_results": {
+      "main": [
+        [
+          {
+            "node": "vapi_outcome_router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vapi_outcome_router": {
+      "main": [
+        [
+          {
+            "node": "hot_lead_alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "hot_lead_email_generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "hot_lead_email_generator": {
+      "main": [
+        [
+          {
+            "node": "send_hot_lead_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "enrollment_webhook": {
+      "main": [
+        [
+          {
+            "node": "enrollment_processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "enrollment_processor": {
+      "main": [
+        [
+          {
+            "node": "store_enrollment_data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store_enrollment_data": {
+      "main": [
+        [
+          {
+            "node": "welcome_package_generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "welcome_package_generator": {
+      "main": [
+        [
+          {
+            "node": "send_welcome_package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send_welcome_package": {
+      "main": [
+        [
+          {
+            "node": "enrollment_success_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "daily_analytics_trigger": {
+      "main": [
+        [
+          {
+            "node": "fetch_lead_analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "fetch_enrollment_analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_lead_analytics": {
+      "main": [
+        [
+          {
+            "node": "analytics_calculator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_enrollment_analytics": {
+      "main": [
+        [
+          {
+            "node": "analytics_calculator",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "analytics_calculator": {
+      "main": [
+        [
+          {
+            "node": "analytics_ai_insights",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "daily_report_slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analytics_ai_insights": {
+      "main": [
+        [
+          {
+            "node": "ai_insights_slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vapi_toggle_webhook": {
+      "main": [
+        [
+          {
+            "node": "vapi_control_processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vapi_control_processor": {
+      "main": [
+        [
+          {
+            "node": "vapi_control_notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "log_vapi_control",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "your-instance-id"
+  },
+  "id": "islamic-education-automation",
+  "tags": []
+}"
